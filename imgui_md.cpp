@@ -776,10 +776,30 @@ ImFont* imgui_md::get_font() const
 
 };
 
+ImVec4 LinkColor()
+{
+    auto col_text = ImGui::GetStyle().Colors[ImGuiCol_Text];
+
+    float h, s, v;
+    ImGui::ColorConvertRGBtoHSV(col_text.x, col_text.y, col_text.z, h, s, v);
+    h = 0.57f;
+    if (v >= 0.8f)
+        v = 0.8f;
+    if (v <= 0.5f)
+        v = 0.5f;
+    if (s <= 0.5f)
+        s = 0.5f;
+
+    ImGui::ColorConvertHSVtoRGB(h, s, v, col_text.x, col_text.y, col_text.z);
+    return col_text;
+}
+
+
 ImVec4 imgui_md::get_color() const
 {
-	if (!m_href.empty()) {
-		return ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered];
+	if (!m_href.empty())
+    {
+		return LinkColor();
 	}
 	return  ImGui::GetStyle().Colors[ImGuiCol_Text];
 }
