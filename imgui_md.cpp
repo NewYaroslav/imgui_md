@@ -25,6 +25,9 @@
 
 #include "imgui_md.h"
 
+#include <cassert>
+
+
 imgui_md::imgui_md()
 {
 	m_md.abi_version = 0;
