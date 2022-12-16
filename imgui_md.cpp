@@ -611,7 +611,11 @@ int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
 		render_text(str, str_end);
 		break;
 	case MD_TEXT_CODE:
-		render_text(str, str_end);
+        m_is_code = true;
+        ImGui::PushFont(get_font());
+        render_text(str, str_end);
+        ImGui::PopFont();
+        m_is_code = false;
 		break;
 	case MD_TEXT_NULLCHAR:
 		break;
