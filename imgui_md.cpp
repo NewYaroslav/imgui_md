@@ -610,11 +610,21 @@ int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
 		render_text(str, str_end);
 		break;
 	case MD_TEXT_CODE:
+    {
         m_is_code = true;
         ImGui::PushFont(get_font());
+
+        // Make code a little more blue
+        auto color = ImGui::GetStyle().Colors[ImGuiCol_Text];
+        color.z *= 1.15f;
+        ImGui::PushStyleColor(ImGuiCol_Text, color);
+
         render_text(str, str_end);
+
+        ImGui::PopStyleColor();
         ImGui::PopFont();
         m_is_code = false;
+    }
 		break;
 	case MD_TEXT_NULLCHAR:
 		break;
