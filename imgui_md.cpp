@@ -768,8 +768,7 @@ int imgui_md::print(const char* str, const char* str_end)
         return 0;
 
     // Markdown rendering always start with a call to ImGui::NewLine()
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetFontSize());
-
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetFontSize() - ImGui::GetStyle().FramePadding.y);
 	return md_parse(str, (MD_SIZE)(str_end - str), &m_md, this);
 }
 
