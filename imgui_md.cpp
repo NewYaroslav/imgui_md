@@ -603,7 +603,6 @@ void imgui_md::html_div(const std::string& dclass, bool e)
     (void)dclass; (void)e;
 }
 
-
 int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
 {
 	switch (type) {
@@ -754,7 +753,12 @@ int imgui_md::span(MD_SPANTYPE type, void* d, bool e)
 
 int imgui_md::print(const char* str, const char* str_end)
 {
-	if (str >= str_end)return 0;
+	if (str >= str_end)
+        return 0;
+
+    // Markdown rendering always start with a call to ImGui::NewLine()
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetFontSize());
+
 	return md_parse(str, (MD_SIZE)(str_end - str), &m_md, this);
 }
 
