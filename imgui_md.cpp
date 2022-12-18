@@ -322,7 +322,8 @@ void imgui_md::line(ImColor c, bool under)
 
 	mi.y = ma.y;
 
-	ImGui::GetWindowDrawList()->AddLine(mi, ma, c, 1.0f);
+	float lineThickness = ImGui::GetFontSize() / 14.5f;
+	ImGui::GetWindowDrawList()->AddLine(mi, ma, c, lineThickness);
 }
 
 void imgui_md::SPAN_A(const MD_SPAN_A_DETAIL* d, bool e)
