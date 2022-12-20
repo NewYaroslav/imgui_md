@@ -122,7 +122,9 @@ protected:
 	bool m_is_table_header = false;
 	bool m_is_table_body = false;
 	bool m_is_image = false;
-	bool m_is_code = false;
+	bool m_is_code = false; // true for block code and inline code
+    bool m_is_code_block = false;
+    std::string m_code_block_language;
 	unsigned m_hlevel=0;//0 - no heading
 	
 private:

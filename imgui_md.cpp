@@ -150,9 +150,14 @@ void imgui_md::BLOCK_QUOTE(bool)
 {
 
 }
-void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL*, bool e)
+void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL* detail, bool e)
 {
 	m_is_code = e;
+    m_is_code_block = e;
+    if (detail->lang.text == NULL)
+        m_code_block_language = "";
+    else
+        m_code_block_language = std::string(detail->lang.text, detail->lang.size);
 }
 
 void imgui_md::BLOCK_HTML(bool)
