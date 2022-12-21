@@ -94,6 +94,8 @@ protected:
 	virtual ImFont* get_font() const;
 	virtual ImVec4 get_color() const;
 
+    // By default, code blocks are rendered as text with the code font, but you can override this
+    virtual void render_code_block();
 
 	//url == m_href
 	virtual void open_url() const;
@@ -112,6 +114,9 @@ protected:
 	virtual void html_div(const std::string& dclass, bool e);
 	////////////////////////////////////////////////////////////////////////////
 
+    virtual void push_code_style();
+    virtual void pop_code_style();
+
 	//current state
 	std::string m_href;//empty if no link/image
 
@@ -125,6 +130,7 @@ protected:
 	bool m_is_code = false; // true for block code and inline code
     bool m_is_code_block = false;
     std::string m_code_block_language;
+    std::string m_code_block;
 	unsigned m_hlevel=0;//0 - no heading
 	
 private:
@@ -134,6 +140,7 @@ private:
 	int span(MD_SPANTYPE type, void* d, bool e);
 
 	void render_text(const char* str, const char* str_end);
+    void render_inline_code(const char* str, const char* str_end);
 	
 	void set_font(bool e);
 	void set_color(bool e);

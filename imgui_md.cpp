@@ -64,8 +64,6 @@ imgui_md::imgui_md()
 
 }
 
-
-
 void imgui_md::BLOCK_UL(const MD_BLOCK_UL_DETAIL* d, bool e)
 {
 	if (e) {
@@ -154,10 +152,17 @@ void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL* detail, bool e)
 {
 	m_is_code = e;
     m_is_code_block = e;
+
+    if (m_is_code_block)
+        m_code_block = "";
+    else
+        render_code_block();
+
     if (detail->lang.text == NULL)
         m_code_block_language = "";
     else
         m_code_block_language = std::string(detail->lang.text, detail->lang.size);
+
 }
 
 void imgui_md::BLOCK_HTML(bool)
@@ -609,6 +614,45 @@ void imgui_md::html_div(const std::string& dclass, bool e)
     (void)dclass; (void)e;
 }
 
+void imgui_md::render_code_block()
+{
+    m_is_code = true;
+    push_code_style();
+
+    const char* begin = m_code_block.data();
+    const char *end = m_code_block.data() + m_code_block.size();
+    render_text(begin, end);
+
+    pop_code_style();
+    m_is_code = false;
+}
+
+void imgui_md::push_code_style()
+{
+    ImGui::PushFont(get_font());
+
+    // Make code a little more blue
+    auto color = ImGui::GetStyle().Colors[ImGuiCol_Text];
+    color.z *= 1.15f;
+    ImGui::PushStyleColor(ImGuiCol_Text, color);
+
+}
+void imgui_md::pop_code_style()
+{
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+}
+
+
+void imgui_md::render_inline_code(const char *str, const char *str_end)
+{
+    m_is_code = true;
+    push_code_style();
+    render_text(str, str_end);
+    pop_code_style();
+    m_is_code = false;
+}
+
 int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
 {
 	switch (type) {
@@ -616,21 +660,10 @@ int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
 		render_text(str, str_end);
 		break;
 	case MD_TEXT_CODE:
-    {
-        m_is_code = true;
-        ImGui::PushFont(get_font());
-
-        // Make code a little more blue
-        auto color = ImGui::GetStyle().Colors[ImGuiCol_Text];
-        color.z *= 1.15f;
-        ImGui::PushStyleColor(ImGuiCol_Text, color);
-
-        render_text(str, str_end);
-
-        ImGui::PopStyleColor();
-        ImGui::PopFont();
-        m_is_code = false;
-    }
+        if (m_is_code_block)
+            m_code_block += std::string(str, str_end);
+        else
+            render_inline_code(str, str_end);
 		break;
 	case MD_TEXT_NULLCHAR:
 		break;
