@@ -303,6 +303,16 @@ void imgui_md::set_href(bool e, const MD_ATTRIBUTE& src)
 	}
 }
 
+void imgui_md::set_img_src(bool e, const MD_ATTRIBUTE& src)
+{
+    if (e) {
+        m_img_src.assign(src.text, src.size);
+    } else {
+        m_img_src.clear();
+    }
+}
+
+
 void imgui_md::set_font(bool e)
 {
 	if (e) {
@@ -360,7 +370,7 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 {
 	m_is_image = e;
 
-	set_href(e, d->src);
+	set_img_src(e, d->src);
 
 	if (e) {
 

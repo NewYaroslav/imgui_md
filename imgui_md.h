@@ -119,6 +119,7 @@ protected:
 
 	//current state
 	std::string m_href;//empty if no link/image
+    std::string m_img_src;//empty if no link/image
 
 	bool m_is_underline=false;
 	bool m_is_strikethrough = false;
@@ -145,6 +146,7 @@ private:
 	void set_font(bool e);
 	void set_color(bool e);
 	void set_href(bool e, const MD_ATTRIBUTE& src);
+    void set_img_src(bool e, const MD_ATTRIBUTE& src);
 
 	static void line(ImColor c, bool under);
 
