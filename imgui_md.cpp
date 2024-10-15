@@ -397,7 +397,7 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 				//	ImGui::SetTooltip("%.*s", (int)d->title.size, d->title.text);
 				//}
 
-				if (ImGui::IsMouseReleased(0)) {
+				if (ImGui::IsMouseClicked(0)) {
 					open_url();
 				}
 			}
@@ -477,7 +477,7 @@ void imgui_md::render_text(const char* str, const char* str_end)
 				ImGui::SetTooltip("%s", m_href.c_str());
 
 				c = s.Colors[ImGuiCol_ButtonHovered];
-				if (ImGui::IsMouseReleased(0)) {
+				if (ImGui::IsMouseClicked(0)) {
 					open_url();
 				}
 			} else {
