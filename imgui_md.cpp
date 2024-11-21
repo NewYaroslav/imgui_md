@@ -148,9 +148,16 @@ void imgui_md::BLOCK_QUOTE(bool)
 {
 
 }
+
+
+bool Priv_ImGuiNodeEditor_IsInCanvas();  // Forward declaration (hidden API of imgui.cpp, specific to ImGui Bundle)
+
 void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL* detail, bool e)
 {
-	m_is_code = e;
+    if (Priv_ImGuiNodeEditor_IsInCanvas())
+        m_is_code = e;
+    else
+    {
     m_is_code_block = e;
 
     if (m_is_code_block)
@@ -162,7 +169,7 @@ void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL* detail, bool e)
         m_code_block_language = "";
     else
         m_code_block_language = std::string(detail->lang.text, detail->lang.size);
-
+    }
 }
 
 void imgui_md::BLOCK_HTML(bool)
