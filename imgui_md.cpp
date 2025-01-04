@@ -504,7 +504,14 @@ void imgui_md::render_text(const char* str, const char* str_end)
 		while (str < str_end && *str == ' ')++str;
 	}
 
-	if (!is_lf)ImGui::SameLine(0.0f, 0.0f);
+	if (!is_lf)
+    {
+        // We add a space after the rendering of the text
+        // (in case we are called back with a continuation of the paragraph,
+        // where the spaces may have been removed when using \n)
+        ImVec2 spaceSize = ImGui::CalcTextSize(" ");
+        ImGui::SameLine(0.0f, spaceSize.x);
+    }
 }
 
 
