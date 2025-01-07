@@ -506,11 +506,7 @@ void imgui_md::render_text(const char* str, const char* str_end)
 
 	if (!is_lf)
     {
-        // We add a space after the rendering of the text
-        // (in case we are called back with a continuation of the paragraph,
-        // where the spaces may have been removed when using \n)
-        ImVec2 spaceSize = ImGui::CalcTextSize(" ");
-        ImGui::SameLine(0.0f, spaceSize.x);
+        ImGui::SameLine(0.0f, 0.0f);
     }
 }
 
@@ -918,8 +914,7 @@ void imgui_md::open_url() const
 
 void imgui_md::soft_break()
 {
-	//Example:
-#if 0
-	ImGui::NewLine();
-#endif
+    // Convert a soft break (e.g. a new line inside a paragraph into a space)
+    ImGui::TextUnformatted(" ");
+    ImGui::SameLine(0.0f, 0.0f);
 }
