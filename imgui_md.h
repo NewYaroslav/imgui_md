@@ -91,7 +91,13 @@ protected:
 	//use m_href to identify image
 	virtual bool get_image(image_info& nfo) const;
 
-	virtual ImFont* get_font() const;
+	struct MdSizedFont
+	{
+		ImFont* font;
+		float size;
+	};
+	virtual MdSizedFont get_font() const;
+
 	virtual ImVec4 get_color() const;
 
     // By default, code blocks are rendered as text with the code font, but you can override this

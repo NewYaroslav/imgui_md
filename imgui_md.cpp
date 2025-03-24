@@ -323,8 +323,11 @@ void imgui_md::set_img_src(bool e, const MD_ATTRIBUTE& src)
 void imgui_md::set_font(bool e)
 {
 	if (e) {
-		ImGui::PushFont(get_font());
+		auto sized_font = get_font();
+		ImGui::PushFont(sized_font.font);
+		ImGui::PushFontSize(sized_font.size);
 	} else {
+		ImGui::PopFontSize();
 		ImGui::PopFont();
 	}
 }
@@ -649,7 +652,9 @@ void imgui_md::render_code_block()
 
 void imgui_md::push_code_style()
 {
-    ImGui::PushFont(get_font());
+	auto code_font = get_font();
+	ImGui::PushFont(code_font.font);
+	ImGui::PushFontSize(code_font.size);
 
     // Make code a little more blue
     auto color = ImGui::GetStyle().Colors[ImGuiCol_Text];
@@ -660,6 +665,7 @@ void imgui_md::push_code_style()
 void imgui_md::pop_code_style()
 {
     ImGui::PopStyleColor();
+	ImGui::PopFontSize();
     ImGui::PopFont();
 }
 
@@ -832,9 +838,9 @@ int imgui_md::print(const char* str, const char* str_end)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ImFont* imgui_md::get_font() const
+imgui_md::MdSizedFont imgui_md::get_font() const
 {
-	return nullptr;//default font
+	return MdSizedFont{nullptr, 0.0f}; // no font in this base class!
 
 	//Example:
 #if 0
