@@ -387,11 +387,10 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 		image_info nfo;
 		if (get_image(nfo)) {
 
-			const float scale = ImGui::GetIO().FontGlobalScale;
+			const float scale = ImGui::GetStyle().FontScaleMain;
 			nfo.size.x *= scale;
 			nfo.size.y *= scale;
-
-
+			
 			ImVec2 const csz = ImGui::GetContentRegionAvail();
 			if (nfo.size.x > csz.x) {
 				const float r = nfo.size.y / nfo.size.x;
@@ -448,7 +447,7 @@ void imgui_md::SPAN_DEL(bool e)
 
 void imgui_md::render_text(const char* str, const char* str_end)
 {
-	const float scale = ImGui::GetIO().FontGlobalScale;
+	const float scale = ImGui::GetStyle().FontScaleMain;
 	const ImGuiStyle& s = ImGui::GetStyle();
 	bool is_lf = false;
 
