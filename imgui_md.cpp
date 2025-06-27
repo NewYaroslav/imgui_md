@@ -324,10 +324,8 @@ void imgui_md::set_font(bool e)
 {
 	if (e) {
 		auto sized_font = get_font();
-		ImGui::PushFont(sized_font.font);
-		ImGui::PushFontSize(sized_font.size);
+		ImGui::PushFont(sized_font.font, sized_font.size);
 	} else {
-		ImGui::PopFontSize();
 		ImGui::PopFont();
 	}
 }
@@ -652,8 +650,7 @@ void imgui_md::render_code_block()
 void imgui_md::push_code_style()
 {
 	auto code_font = get_font();
-	ImGui::PushFont(code_font.font);
-	ImGui::PushFontSize(code_font.size);
+	ImGui::PushFont(code_font.font, code_font.size);
 
     // Make code a little more blue
     auto color = ImGui::GetStyle().Colors[ImGuiCol_Text];
@@ -664,7 +661,6 @@ void imgui_md::push_code_style()
 void imgui_md::pop_code_style()
 {
     ImGui::PopStyleColor();
-	ImGui::PopFontSize();
     ImGui::PopFont();
 }
 
