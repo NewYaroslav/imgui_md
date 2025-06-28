@@ -396,7 +396,7 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 				nfo.size.y = csz.x * r;
 			}
 
-			ImGui::Image(nfo.texture_id, nfo.size, nfo.uv0, nfo.uv1, nfo.col_tint, nfo.col_border);
+			ImGui::ImageWithBg(nfo.texture_id, nfo.size, nfo.uv0, nfo.uv1, nfo.col_tint, nfo.col_border);
 
 			if (ImGui::IsItemHovered()) {
 
@@ -463,7 +463,7 @@ void imgui_md::render_text(const char* str, const char* str_end)
 				wl -= ImGui::GetCursorPosX();
 			}
 
-			te = ImGui::GetFont()->CalcWordWrapPositionA(
+			te = ImGui::GetFont()->CalcWordWrapPosition(
 				scale, str, str_end, wl);
 
 			if (te == str)++te;
