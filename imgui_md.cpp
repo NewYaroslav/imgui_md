@@ -396,7 +396,7 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 				nfo.size.y = csz.x * r;
 			}
 
-			ImGui::ImageWithBg(nfo.texture_id, nfo.size, nfo.uv0, nfo.uv1, nfo.col_tint, nfo.col_border);
+			ImGui::Image(nfo.texture_id, nfo.size, nfo.uv0, nfo.uv1);
 
 			if (ImGui::IsItemHovered()) {
 
@@ -898,8 +898,6 @@ bool imgui_md::get_image(image_info& nfo) const
 	nfo.size = { 100,50 };
 	nfo.uv0 = { 0,0 };
 	nfo.uv1 = { 1,1 };
-	nfo.col_tint = { 1,1,1,1 };
-	nfo.col_border = { 0,0,0,0 };
 
 	return true;
 };

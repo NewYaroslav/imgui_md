@@ -84,8 +84,6 @@ protected:
 		ImVec2	size;
 		ImVec2	uv0;
 		ImVec2	uv1;
-		ImVec4	col_tint;
-		ImVec4	col_border;
 	};
 
 	//use m_href to identify image
