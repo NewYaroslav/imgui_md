@@ -445,7 +445,7 @@ void imgui_md::SPAN_DEL(bool e)
 
 void imgui_md::render_text(const char* str, const char* str_end)
 {
-	const float scale = ImGui::GetStyle().FontScaleMain;
+	const float size = get_font().size;
 	const ImGuiStyle& s = ImGui::GetStyle();
 	bool is_lf = false;
 
@@ -464,7 +464,7 @@ void imgui_md::render_text(const char* str, const char* str_end)
 			}
 
 			te = ImGui::GetFont()->CalcWordWrapPosition(
-				scale, str, str_end, wl);
+				size, str, str_end, wl);
 
 			if (te == str)++te;
 		}
