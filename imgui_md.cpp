@@ -25,43 +25,57 @@
 
 #include "imgui_md.h"
 
+#ifndef IMGUI_MD_MD4C_INCLUDE
+#  define IMGUI_MD_MD4C_INCLUDE "md4c.h"
+#endif
+extern "C" {
+#  include IMGUI_MD_MD4C_INCLUDE
+}
+
 #include <cassert>
 
 
 imgui_md::imgui_md()
 {
-	m_md.abi_version = 0;
+        m_md = new MD_PARSER{};
+        m_md->abi_version = 0;
 
-	m_md.flags = MD_FLAG_TABLES | MD_FLAG_UNDERLINE | MD_FLAG_STRIKETHROUGH;
+        m_md->flags = MD_FLAG_TABLES | MD_FLAG_UNDERLINE | MD_FLAG_STRIKETHROUGH;
 
-	m_md.enter_block = [](MD_BLOCKTYPE t, void* d, void* u) {
-		return ((imgui_md*)u)->block(t, d, true);
-	};
+        m_md->enter_block = [](MD_BLOCKTYPE t, void* d, void* u) {
+                return ((imgui_md*)u)->block(t, d, true);
+        };
 
-	m_md.leave_block = [](MD_BLOCKTYPE t, void* d, void* u) {
-		return ((imgui_md*)u)->block(t, d, false);
-	};
+        m_md->leave_block = [](MD_BLOCKTYPE t, void* d, void* u) {
+                return ((imgui_md*)u)->block(t, d, false);
+        };
 
-	m_md.enter_span = [](MD_SPANTYPE t, void* d, void* u) {
-		return ((imgui_md*)u)->span(t, d, true);
-	};
+        m_md->enter_span = [](MD_SPANTYPE t, void* d, void* u) {
+                return ((imgui_md*)u)->span(t, d, true);
+        };
 
-	m_md.leave_span = [](MD_SPANTYPE t, void* d, void* u) {
-		return ((imgui_md*)u)->span(t, d, false);
-	};
+        m_md->leave_span = [](MD_SPANTYPE t, void* d, void* u) {
+                return ((imgui_md*)u)->span(t, d, false);
+        };
 
-	m_md.text = [](MD_TEXTTYPE t, const MD_CHAR* text, MD_SIZE size, void* u) {
-		return ((imgui_md*)u)->text(t, text, text + size);
-	};
+        m_md->text = [](MD_TEXTTYPE t, const MD_CHAR* text, MD_SIZE size, void* u) {
+                return ((imgui_md*)u)->text(t, text, text + size);
+        };
 
-	m_md.debug_log = nullptr;
+        m_md->debug_log = nullptr;
 
-	m_md.syntax = nullptr;
+        m_md->syntax = nullptr;
 
-	////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////
 
-	m_table_last_pos = ImVec2(0, 0);
+        m_table_last_pos = ImVec2(0, 0);
 
+}
+
+imgui_md::~imgui_md()
+{
+        delete m_md;
+        m_md = nullptr;
 }
 
 void imgui_md::BLOCK_UL(const MD_BLOCK_UL_DETAIL* d, bool e)
@@ -835,7 +849,7 @@ int imgui_md::print(const char* str, const char* str_end)
 
     // Markdown rendering always start with a call to ImGui::NewLine()
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetFontSize() - ImGui::GetStyle().FramePadding.y);
-	return md_parse(str, (MD_SIZE)(str_end - str), &m_md, this);
+        return md_parse(str, (MD_SIZE)(str_end - str), m_md, this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

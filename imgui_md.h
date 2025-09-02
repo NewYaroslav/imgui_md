@@ -26,20 +26,30 @@
 #ifndef IMGUI_MD_H
 #define IMGUI_MD_H
 
-#ifndef IMGUI_MD_MD4C_INCLUDE
-#  define IMGUI_MD_MD4C_INCLUDE "md4c.h"
-#endif
-extern "C" {
-#  include IMGUI_MD_MD4C_INCLUDE
-}
 #include "imgui.h"
 #include <string>
 #include <vector>
 
+struct MD_PARSER;
+struct MD_ATTRIBUTE;
+struct MD_BLOCK_UL_DETAIL;
+struct MD_BLOCK_OL_DETAIL;
+struct MD_BLOCK_LI_DETAIL;
+struct MD_BLOCK_H_DETAIL;
+struct MD_BLOCK_CODE_DETAIL;
+struct MD_BLOCK_TABLE_DETAIL;
+struct MD_BLOCK_TD_DETAIL;
+struct MD_SPAN_A_DETAIL;
+struct MD_SPAN_IMG_DETAIL;
+struct MD_SPAN_WIKILINK_DETAIL;
+enum MD_TEXTTYPE   : int;
+enum MD_BLOCKTYPE  : int;
+enum MD_SPANTYPE   : int;
+
 struct imgui_md
 {
-	imgui_md();
-	virtual ~imgui_md() {};
+        imgui_md();
+        virtual ~imgui_md();
 
 	//returns 0 on success
 	int print(const char* str, const char* str_end);
@@ -174,9 +184,9 @@ private:
 	};
 	std::vector<list_info> m_list_stack;
 
-	std::vector<std::string> m_div_stack;
+        std::vector<std::string> m_div_stack;
 
-	MD_PARSER m_md;
+        MD_PARSER* m_md = nullptr;
 };
 
 #endif  /* IMGUI_MD_H */
