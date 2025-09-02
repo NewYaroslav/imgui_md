@@ -149,8 +149,15 @@ void imgui_md::BLOCK_QUOTE(bool)
 
 }
 
+#ifndef IMGUI_MD_WITH_NODE_EDITOR
+#  define IMGUI_MD_WITH_NODE_EDITOR 0
+#endif
 
-bool Priv_ImGuiNodeEditor_IsInCanvas();  // Forward declaration (hidden API of imgui.cpp, specific to ImGui Bundle)
+#if IMGUI_MD_WITH_NODE_EDITOR
+extern bool Priv_ImGuiNodeEditor_IsInCanvas();  // Forward declaration (hidden API of imgui.cpp, specific to ImGui Bundle)
+#else
+static inline bool Priv_ImGuiNodeEditor_IsInCanvas() { return false; }
+#endif
 
 void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL* detail, bool e)
 {

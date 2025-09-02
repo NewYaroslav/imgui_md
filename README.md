@@ -33,6 +33,8 @@ If md4c.h is located elsewhere, you can override its path by defining `IMGUI_MD_
 g++ -DIMGUI_MD_MD4C_INCLUDE=\"path/to/md4c.h\"
 ```
 
+If you use ImGui's node editor, enable its integration by defining `IMGUI_MD_WITH_NODE_EDITOR=1` during compilation. The flag defaults to `0`, which provides a stub and avoids link errors when the node editor is not present.
+
 ```cpp
 #include "imgui_md.h"
 
