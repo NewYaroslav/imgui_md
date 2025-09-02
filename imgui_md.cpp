@@ -25,6 +25,9 @@
 
 #include "imgui_md.h"
 
+#include <cassert>
+
+
 imgui_md::imgui_md()
 {
 	m_md.abi_version = 0;
@@ -60,8 +63,6 @@ imgui_md::imgui_md()
 	m_table_last_pos = ImVec2(0, 0);
 
 }
-
-
 
 void imgui_md::BLOCK_UL(const MD_BLOCK_UL_DETAIL* d, bool e)
 {
@@ -147,9 +148,28 @@ void imgui_md::BLOCK_QUOTE(bool)
 {
 
 }
-void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL*, bool e)
+
+
+bool Priv_ImGuiNodeEditor_IsInCanvas();  // Forward declaration (hidden API of imgui.cpp, specific to ImGui Bundle)
+
+void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL* detail, bool e)
 {
-	m_is_code = e;
+    if (Priv_ImGuiNodeEditor_IsInCanvas())
+        m_is_code = e;
+    else
+    {
+    m_is_code_block = e;
+
+    if (m_is_code_block)
+        m_code_block = "";
+    else
+        render_code_block();
+
+    if (detail->lang.text == NULL)
+        m_code_block_language = "";
+    else
+        m_code_block_language = std::string(detail->lang.text, detail->lang.size);
+    }
 }
 
 void imgui_md::BLOCK_HTML(bool)
@@ -290,10 +310,21 @@ void imgui_md::set_href(bool e, const MD_ATTRIBUTE& src)
 	}
 }
 
+void imgui_md::set_img_src(bool e, const MD_ATTRIBUTE& src)
+{
+    if (e) {
+        m_img_src.assign(src.text, src.size);
+    } else {
+        m_img_src.clear();
+    }
+}
+
+
 void imgui_md::set_font(bool e)
 {
 	if (e) {
-		ImGui::PushFont(get_font());
+		auto sized_font = get_font();
+		ImGui::PushFont(sized_font.font, sized_font.size);
 	} else {
 		ImGui::PopFont();
 	}
@@ -319,7 +350,8 @@ void imgui_md::line(ImColor c, bool under)
 
 	mi.y = ma.y;
 
-	ImGui::GetWindowDrawList()->AddLine(mi, ma, c, 1.0f);
+	float lineThickness = ImGui::GetFontSize() / 14.5f;
+	ImGui::GetWindowDrawList()->AddLine(mi, ma, c, lineThickness);
 }
 
 void imgui_md::SPAN_A(const MD_SPAN_A_DETAIL* d, bool e)
@@ -346,18 +378,17 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 {
 	m_is_image = e;
 
-	set_href(e, d->src);
+	set_img_src(e, d->src);
 
 	if (e) {
 
 		image_info nfo;
 		if (get_image(nfo)) {
 
-			const float scale = ImGui::GetIO().FontGlobalScale;
+			const float scale = ImGui::GetStyle().FontScaleMain;
 			nfo.size.x *= scale;
 			nfo.size.y *= scale;
-
-
+			
 			ImVec2 const csz = ImGui::GetContentRegionAvail();
 			if (nfo.size.x > csz.x) {
 				const float r = nfo.size.y / nfo.size.x;
@@ -365,7 +396,7 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 				nfo.size.y = csz.x * r;
 			}
 
-			ImGui::Image(nfo.texture_id, nfo.size, nfo.uv0, nfo.uv1, nfo.col_tint, nfo.col_border);
+			ImGui::Image(nfo.texture_id, nfo.size, nfo.uv0, nfo.uv1);
 
 			if (ImGui::IsItemHovered()) {
 
@@ -373,7 +404,7 @@ void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
 				//	ImGui::SetTooltip("%.*s", (int)d->title.size, d->title.text);
 				//}
 
-				if (ImGui::IsMouseReleased(0)) {
+				if (ImGui::IsMouseClicked(0)) {
 					open_url();
 				}
 			}
@@ -414,7 +445,7 @@ void imgui_md::SPAN_DEL(bool e)
 
 void imgui_md::render_text(const char* str, const char* str_end)
 {
-	const float scale = ImGui::GetIO().FontGlobalScale;
+	const float size = get_font().size;
 	const ImGuiStyle& s = ImGui::GetStyle();
 	bool is_lf = false;
 
@@ -432,8 +463,8 @@ void imgui_md::render_text(const char* str, const char* str_end)
 				wl -= ImGui::GetCursorPosX();
 			}
 
-			te = ImGui::GetFont()->CalcWordWrapPositionA(
-				scale, str, str_end, wl);
+			te = ImGui::GetFont()->CalcWordWrapPosition(
+				size, str, str_end, wl);
 
 			if (te == str)++te;
 		}
@@ -453,7 +484,7 @@ void imgui_md::render_text(const char* str, const char* str_end)
 				ImGui::SetTooltip("%s", m_href.c_str());
 
 				c = s.Colors[ImGuiCol_ButtonHovered];
-				if (ImGui::IsMouseReleased(0)) {
+				if (ImGui::IsMouseClicked(0)) {
 					open_url();
 				}
 			} else {
@@ -473,7 +504,10 @@ void imgui_md::render_text(const char* str, const char* str_end)
 		while (str < str_end && *str == ' ')++str;
 	}
 
-	if (!is_lf)ImGui::SameLine(0.0f, 0.0f);
+	if (!is_lf)
+    {
+        ImGui::SameLine(0.0f, 0.0f);
+    }
 }
 
 
@@ -597,9 +631,48 @@ void imgui_md::html_div(const std::string& dclass, bool e)
 		}
 	}
 #endif
-	dclass; e;
+    (void)dclass; (void)e;
 }
 
+void imgui_md::render_code_block()
+{
+    m_is_code = true;
+    push_code_style();
+
+    const char* begin = m_code_block.data();
+    const char *end = m_code_block.data() + m_code_block.size();
+    render_text(begin, end);
+
+    pop_code_style();
+    m_is_code = false;
+}
+
+void imgui_md::push_code_style()
+{
+	auto code_font = get_font();
+	ImGui::PushFont(code_font.font, code_font.size);
+
+    // Make code a little more blue
+    auto color = ImGui::GetStyle().Colors[ImGuiCol_Text];
+    color.z *= 1.15f;
+    ImGui::PushStyleColor(ImGuiCol_Text, color);
+
+}
+void imgui_md::pop_code_style()
+{
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+}
+
+
+void imgui_md::render_inline_code(const char *str, const char *str_end)
+{
+    m_is_code = true;
+    push_code_style();
+    render_text(str, str_end);
+    pop_code_style();
+    m_is_code = false;
+}
 
 int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
 {
@@ -608,7 +681,10 @@ int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
 		render_text(str, str_end);
 		break;
 	case MD_TEXT_CODE:
-		render_text(str, str_end);
+        if (m_is_code_block)
+            m_code_block += std::string(str, str_end);
+        else
+            render_inline_code(str, str_end);
 		break;
 	case MD_TEXT_NULLCHAR:
 		break;
@@ -747,15 +823,19 @@ int imgui_md::span(MD_SPANTYPE type, void* d, bool e)
 
 int imgui_md::print(const char* str, const char* str_end)
 {
-	if (str >= str_end)return 0;
+	if (str >= str_end)
+        return 0;
+
+    // Markdown rendering always start with a call to ImGui::NewLine()
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetFontSize() - ImGui::GetStyle().FramePadding.y);
 	return md_parse(str, (MD_SIZE)(str_end - str), &m_md, this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ImFont* imgui_md::get_font() const
+imgui_md::MdSizedFont imgui_md::get_font() const
 {
-	return nullptr;//default font
+	return MdSizedFont{nullptr, 0.0f}; // no font in this base class!
 
 	//Example:
 #if 0
@@ -776,10 +856,30 @@ ImFont* imgui_md::get_font() const
 
 };
 
+ImVec4 LinkColor()
+{
+    auto col_text = ImGui::GetStyle().Colors[ImGuiCol_Text];
+
+    float h, s, v;
+    ImGui::ColorConvertRGBtoHSV(col_text.x, col_text.y, col_text.z, h, s, v);
+    h = 0.57f;
+    if (v >= 0.8f)
+        v = 0.8f;
+    if (v <= 0.5f)
+        v = 0.5f;
+    if (s <= 0.5f)
+        s = 0.5f;
+
+    ImGui::ColorConvertHSVtoRGB(h, s, v, col_text.x, col_text.y, col_text.z);
+    return col_text;
+}
+
+
 ImVec4 imgui_md::get_color() const
 {
-	if (!m_href.empty()) {
-		return ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered];
+	if (!m_href.empty())
+    {
+		return LinkColor();
 	}
 	return  ImGui::GetStyle().Colors[ImGuiCol_Text];
 }
@@ -790,12 +890,14 @@ bool imgui_md::get_image(image_info& nfo) const
 	//Use m_href to identify images
 	
 	//Example - Imgui font texture
+#ifdef IMGUI_HAS_TEXTURES
+	nfo.texture_id = ImGui::GetIO().Fonts->TexRef.GetTexID();
+#else
 	nfo.texture_id = ImGui::GetIO().Fonts->TexID;
+#endif
 	nfo.size = { 100,50 };
 	nfo.uv0 = { 0,0 };
 	nfo.uv1 = { 1,1 };
-	nfo.col_tint = { 1,1,1,1 };
-	nfo.col_border = { 0,0,0,0 };
 
 	return true;
 };
@@ -815,8 +917,7 @@ void imgui_md::open_url() const
 
 void imgui_md::soft_break()
 {
-	//Example:
-#if 0
-	ImGui::NewLine();
-#endif
+    // Convert a soft break (e.g. a new line inside a paragraph into a space)
+    ImGui::TextUnformatted(" ");
+    ImGui::SameLine(0.0f, 0.0f);
 }
