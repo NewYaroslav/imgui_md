@@ -26,7 +26,12 @@
 #ifndef IMGUI_MD_H
 #define IMGUI_MD_H
 
-#include "md4c.h"
+#ifndef IMGUI_MD_MD4C_INCLUDE
+#  define IMGUI_MD_MD4C_INCLUDE "md4c.h"
+#endif
+extern "C" {
+#  include IMGUI_MD_MD4C_INCLUDE
+}
 #include "imgui.h"
 #include <string>
 #include <vector>

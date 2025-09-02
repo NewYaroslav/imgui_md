@@ -27,6 +27,11 @@ Current tables limitations:
 ## Usage
 
 Add imgui_md.h imgui_md.cpp md4c.h md4c.c to your project and use the following code:
+If md4c.h is located elsewhere, you can override its path by defining `IMGUI_MD_MD4C_INCLUDE`, for example:
+
+```
+g++ -DIMGUI_MD_MD4C_INCLUDE=\"path/to/md4c.h\"
+```
 
 ```cpp
 #include "imgui_md.h"
