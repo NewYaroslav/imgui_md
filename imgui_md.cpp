@@ -774,7 +774,7 @@ int imgui_md::block(int type, void* d, bool e)
         case MD_BLOCK_H:
         {
                 auto* in = (MD_BLOCK_H_DETAIL*)d;
-                MdBlockHDetail out{ in->level };
+                MdBlockHDetail out{ static_cast<int>(in->level) };
                 BLOCK_H(&out, e);
         }
                 break;
@@ -868,10 +868,8 @@ int imgui_md::span(int type, void* d, bool e)
 }
 
 int imgui_md::print(const char* str, const char* str_end)
-
-int imgui_md::print(const char* str, const char* str_end)
 {
-	if (str >= str_end)
+        if (str >= str_end)
         return 0;
 
     // Markdown rendering always start with a call to ImGui::NewLine()
