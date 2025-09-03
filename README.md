@@ -27,6 +27,8 @@ Current tables limitations:
 ## Usage
 
 Add imgui_md.h imgui_md.cpp md4c.h md4c.c to your project and use the following code:
+The public header no longer exposes md4c types; thin wrappers like `MdBlockHDetail` and
+`MdSpanADetail` are used instead.
 If md4c.h is located elsewhere, you can override its path by defining `IMGUI_MD_MD4C_INCLUDE`, for example:
 
 ```
@@ -45,7 +47,7 @@ extern ImFont* g_font_bold;
 extern ImFont* g_font_bold_large;
 extern ImTextureID g_texture1;
 
-struct my_markdown : public imgui_md 
+struct my_markdown : public imgui_md
 {
 	ImFont* get_font() const override
 	{
@@ -61,12 +63,12 @@ struct my_markdown : public imgui_md
 			return g_font_bold_large;
 		default:
 			return g_font_bold;
-		}
-	};
+        }
+};
 
-	void open_url() const override
-	{
-		//platform dependent code
+        void open_url() const override
+        {
+                //platform dependent code
 		SDL_OpenURL(m_href.c_str());
 	}
 
@@ -93,17 +95,29 @@ struct my_markdown : public imgui_md
 				m_table_border = true;
 			}
 		}
-	}
+        }
 };
 
 
 //call this function to render your markdown
 void markdown(const char* str, const char* str_end)
 {
-	static my_markdown s_printer;
-	s_printer.print(str, str_end);
+        static my_markdown s_printer;
+        s_printer.print(str, str_end);
 }
 
+```
+
+// Examples of overriding callbacks with the new thin types
+```cpp
+struct hooks_example : imgui_md {
+    void BLOCK_H(const MdBlockHDetail* d, bool enter) override {
+        if (enter) m_hlevel = d->level;
+    }
+    void SPAN_A(const MdSpanADetail* d, bool enter) override {
+        if (enter) m_href.assign(d->href.text, d->href.size);
+    }
+};
 ```
 
 ## Examples
