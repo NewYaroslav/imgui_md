@@ -30,21 +30,11 @@
 #include <string>
 #include <vector>
 
-struct MD_PARSER;
-struct MD_ATTRIBUTE;
-struct MD_BLOCK_UL_DETAIL;
-struct MD_BLOCK_OL_DETAIL;
-struct MD_BLOCK_LI_DETAIL;
-struct MD_BLOCK_H_DETAIL;
-struct MD_BLOCK_CODE_DETAIL;
-struct MD_BLOCK_TABLE_DETAIL;
-struct MD_BLOCK_TD_DETAIL;
-struct MD_SPAN_A_DETAIL;
-struct MD_SPAN_IMG_DETAIL;
-struct MD_SPAN_WIKILINK_DETAIL;
-enum MD_TEXTTYPE   : int;
-enum MD_BLOCKTYPE  : int;
-enum MD_SPANTYPE   : int;
+struct MdAttr { const char* text; int size; };
+struct MdBlockHDetail { int level; };
+struct MdBlockCodeDetail { MdAttr lang; };
+struct MdSpanADetail { MdAttr href; };
+struct MdSpanImgDetail { MdAttr src; };
 
 /// \brief Markdown renderer for Dear ImGui using MD4C.
 /// \code
@@ -76,30 +66,30 @@ struct imgui_md
     
     virtual void BLOCK_DOC(bool);
     virtual void BLOCK_QUOTE(bool);
-    virtual void BLOCK_UL(const MD_BLOCK_UL_DETAIL*, bool);
-    virtual void BLOCK_OL(const MD_BLOCK_OL_DETAIL*, bool);
-    virtual void BLOCK_LI(const MD_BLOCK_LI_DETAIL*, bool);
+    virtual void BLOCK_UL(bool enter);
+    virtual void BLOCK_OL(bool enter);
+    virtual void BLOCK_LI(bool enter);
     virtual void BLOCK_HR(bool e);
-    virtual void BLOCK_H(const MD_BLOCK_H_DETAIL* d, bool e);
-    virtual void BLOCK_CODE(const MD_BLOCK_CODE_DETAIL*, bool);
+    virtual void BLOCK_H(const MdBlockHDetail* d, bool enter);
+    virtual void BLOCK_CODE(const MdBlockCodeDetail* d, bool enter);
     virtual void BLOCK_HTML(bool);
     virtual void BLOCK_P(bool);
-    virtual void BLOCK_TABLE(const MD_BLOCK_TABLE_DETAIL*, bool);
+    virtual void BLOCK_TABLE(bool enter);
     virtual void BLOCK_THEAD(bool);
     virtual void BLOCK_TBODY(bool);
     virtual void BLOCK_TR(bool);
-    virtual void BLOCK_TH(const MD_BLOCK_TD_DETAIL*, bool);
-    virtual void BLOCK_TD(const MD_BLOCK_TD_DETAIL*, bool);
-    
+    virtual void BLOCK_TH(bool enter);
+    virtual void BLOCK_TD(bool enter);
+
     virtual void SPAN_EM(bool e);
     virtual void SPAN_STRONG(bool e);
-    virtual void SPAN_A(const MD_SPAN_A_DETAIL* d, bool e);
-    virtual void SPAN_IMG(const MD_SPAN_IMG_DETAIL*, bool);
+    virtual void SPAN_A(const MdSpanADetail* d, bool enter);
+    virtual void SPAN_IMG(const MdSpanImgDetail* d, bool enter);
     virtual void SPAN_CODE(bool);
     virtual void SPAN_DEL(bool);
     virtual void SPAN_LATEXMATH(bool);
     virtual void SPAN_LATEXMATH_DISPLAY(bool);
-    virtual void SPAN_WIKILINK(const MD_SPAN_WIKILINK_DETAIL*, bool);
+    virtual void SPAN_WIKILINK(bool enter);
     virtual void SPAN_U(bool);
     
     ////////////////////////////////////////////////////////////////////////////
@@ -167,17 +157,13 @@ struct imgui_md
     
     private:
     
-    int text(MD_TEXTTYPE type, const char* str, const char* str_end);
-    int block(MD_BLOCKTYPE type, void* d, bool e);
-    int span(MD_SPANTYPE type, void* d, bool e);
-    
     void render_text(const char* str, const char* str_end);
     void render_inline_code(const char* str, const char* str_end);
-    
+
     void set_font(bool e);
     void set_color(bool e);
-    void set_href(bool e, const MD_ATTRIBUTE& src);
-    void set_img_src(bool e, const MD_ATTRIBUTE& src);
+    void set_href(bool e, const MdAttr& src);
+    void set_img_src(bool e, const MdAttr& src);
     
     static void line(ImColor c, bool under);
     
@@ -197,8 +183,12 @@ struct imgui_md
     std::vector<list_info> m_list_stack;
     
     std::vector<std::string> m_div_stack;
-    
-    MD_PARSER* m_md = nullptr;
+
+    struct Md4cParser;
+    Md4cParser* m_md = nullptr;
+
+    int block(int type, void* d, bool enter);
+    int span(int type, void* d, bool enter);
 };
 
 #endif  /* IMGUI_MD_H */

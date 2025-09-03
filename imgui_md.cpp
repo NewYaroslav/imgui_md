@@ -32,34 +32,83 @@ extern "C" {
 #  include IMGUI_MD_MD4C_INCLUDE
 }
 
+struct imgui_md::Md4cParser : MD_PARSER {};
+
+static inline MdAttr to_attr(const MD_ATTRIBUTE& a) {
+    return { a.text, (int)a.size };
+}
+
 #include <cassert>
 
 
 imgui_md::imgui_md()
 {
-        m_md = new MD_PARSER{};
+        m_md = new Md4cParser{};
         m_md->abi_version = 0;
 
         m_md->flags = MD_FLAG_TABLES | MD_FLAG_UNDERLINE | MD_FLAG_STRIKETHROUGH;
 
         m_md->enter_block = [](MD_BLOCKTYPE t, void* d, void* u) {
-                return ((imgui_md*)u)->block(t, d, true);
+                return ((imgui_md*)u)->block((int)t, d, true);
         };
 
         m_md->leave_block = [](MD_BLOCKTYPE t, void* d, void* u) {
-                return ((imgui_md*)u)->block(t, d, false);
+                return ((imgui_md*)u)->block((int)t, d, false);
         };
 
         m_md->enter_span = [](MD_SPANTYPE t, void* d, void* u) {
-                return ((imgui_md*)u)->span(t, d, true);
+                return ((imgui_md*)u)->span((int)t, d, true);
         };
 
         m_md->leave_span = [](MD_SPANTYPE t, void* d, void* u) {
-                return ((imgui_md*)u)->span(t, d, false);
+                return ((imgui_md*)u)->span((int)t, d, false);
         };
 
         m_md->text = [](MD_TEXTTYPE t, const MD_CHAR* text, MD_SIZE size, void* u) {
-                return ((imgui_md*)u)->text(t, text, text + size);
+                imgui_md* self = (imgui_md*)u;
+                const char* str = text;
+                const char* str_end = text + size;
+                switch (t) {
+                case MD_TEXT_NORMAL:
+                        self->render_text(str, str_end);
+                        break;
+                case MD_TEXT_CODE:
+                        if (self->m_is_code_block)
+                                self->m_code_block += std::string(str, str_end);
+                        else
+                                self->render_inline_code(str, str_end);
+                        break;
+                case MD_TEXT_NULLCHAR:
+                        break;
+                case MD_TEXT_BR:
+                        ImGui::NewLine();
+                        break;
+                case MD_TEXT_SOFTBR:
+                        self->soft_break();
+                        break;
+                case MD_TEXT_ENTITY:
+                        if (!self->render_entity(str, str_end)) {
+                                self->render_text(str, str_end);
+                        }
+                        break;
+                case MD_TEXT_HTML:
+                        if (!self->check_html(str, str_end)) {
+                                self->render_text(str, str_end);
+                        }
+                        break;
+                case MD_TEXT_LATEXMATH:
+                        self->render_text(str, str_end);
+                        break;
+                default:
+                        break;
+                }
+
+                if (self->m_is_table_header) {
+                        const float x = ImGui::GetCursorPosX();
+                        if (x > self->m_table_last_pos.x)
+                                self->m_table_last_pos.x = x;
+                }
+                return 0;
         };
 
         m_md->debug_log = nullptr;
@@ -78,30 +127,18 @@ imgui_md::~imgui_md()
         m_md = nullptr;
 }
 
-void imgui_md::BLOCK_UL(const MD_BLOCK_UL_DETAIL* d, bool e)
+void imgui_md::BLOCK_UL(bool)
 {
-	if (e) {
-		m_list_stack.push_back(list_info{ 0, d->mark, false });
-	} else {
-		m_list_stack.pop_back();
-		if (m_list_stack.empty())ImGui::NewLine();
-	}
 }
 
-void imgui_md::BLOCK_OL(const MD_BLOCK_OL_DETAIL* d, bool e)
+void imgui_md::BLOCK_OL(bool)
 {
-	if (e) {
-		m_list_stack.push_back(list_info{ d->start, d->mark_delimiter, true });
-	} else {
-		m_list_stack.pop_back();
-		if (m_list_stack.empty())ImGui::NewLine();
-	}
 }
 
-void imgui_md::BLOCK_LI(const MD_BLOCK_LI_DETAIL*, bool e)
+void imgui_md::BLOCK_LI(bool e)
 {
-	if (e) {
-		ImGui::NewLine();
+        if (e) {
+                ImGui::NewLine();
 
 		list_info& nfo = m_list_stack.back();
 		if (nfo.is_ol) {
@@ -116,8 +153,8 @@ void imgui_md::BLOCK_LI(const MD_BLOCK_LI_DETAIL*, bool e)
 			} else {
 				ImGui::Text("%c", nfo.delim);
 				ImGui::SameLine();
-			}
-		}
+        }
+}
 
 		ImGui::Indent();
 	} else {
@@ -134,7 +171,7 @@ void imgui_md::BLOCK_HR(bool e)
 	}
 }
 
-void imgui_md::BLOCK_H(const MD_BLOCK_H_DETAIL* d, bool e)
+void imgui_md::BLOCK_H(const MdBlockHDetail* d, bool e)
 {
 	if (e) {
 		m_hlevel = d->level;
@@ -173,7 +210,7 @@ extern bool Priv_ImGuiNodeEditor_IsInCanvas();  // Forward declaration (hidden A
 static inline bool Priv_ImGuiNodeEditor_IsInCanvas() { return false; }
 #endif
 
-void imgui_md::BLOCK_CODE(const MD_BLOCK_CODE_DETAIL* detail, bool e)
+void imgui_md::BLOCK_CODE(const MdBlockCodeDetail* detail, bool e)
 {
     if (Priv_ImGuiNodeEditor_IsInCanvas())
         m_is_code = e;
@@ -204,7 +241,7 @@ void imgui_md::BLOCK_P(bool)
 	ImGui::NewLine();
 }
 
-void imgui_md::BLOCK_TABLE(const MD_BLOCK_TABLE_DETAIL*, bool e)
+void imgui_md::BLOCK_TABLE(bool e)
 {
 	if (e) {
 		m_table_row_pos.clear();
@@ -283,15 +320,15 @@ void imgui_md::BLOCK_TR(bool e)
 	}
 }
 
-void imgui_md::BLOCK_TH(const MD_BLOCK_TD_DETAIL* d, bool e)
+void imgui_md::BLOCK_TH(bool e)
 {
-	BLOCK_TD(d, e);
+        BLOCK_TD(e);
 
 }
 
-void imgui_md::BLOCK_TD(const MD_BLOCK_TD_DETAIL*, bool e)
+void imgui_md::BLOCK_TD(bool e)
 {
-	if (e) {
+        if (e) {
 
 		if (m_table_next_column < m_table_col_pos.size()) {
 			ImGui::SetCursorPosX(m_table_col_pos[m_table_next_column]);
@@ -322,7 +359,7 @@ void imgui_md::BLOCK_TD(const MD_BLOCK_TD_DETAIL*, bool e)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void imgui_md::set_href(bool e, const MD_ATTRIBUTE& src)
+void imgui_md::set_href(bool e, const MdAttr& src)
 {
 	if (e) {
 		m_href.assign(src.text, src.size);
@@ -331,7 +368,7 @@ void imgui_md::set_href(bool e, const MD_ATTRIBUTE& src)
 	}
 }
 
-void imgui_md::set_img_src(bool e, const MD_ATTRIBUTE& src)
+void imgui_md::set_img_src(bool e, const MdAttr& src)
 {
     if (e) {
         m_img_src.assign(src.text, src.size);
@@ -375,7 +412,7 @@ void imgui_md::line(ImColor c, bool under)
 	ImGui::GetWindowDrawList()->AddLine(mi, ma, c, lineThickness);
 }
 
-void imgui_md::SPAN_A(const MD_SPAN_A_DETAIL* d, bool e)
+void imgui_md::SPAN_A(const MdSpanADetail* d, bool e)
 {
 	set_href(e, d->href);
 	set_color(e);
@@ -395,7 +432,7 @@ void imgui_md::SPAN_STRONG(bool e)
 }
 
 
-void imgui_md::SPAN_IMG(const MD_SPAN_IMG_DETAIL* d, bool e)
+void imgui_md::SPAN_IMG(const MdSpanImgDetail* d, bool e)
 {
 	m_is_image = e;
 
@@ -449,7 +486,7 @@ void imgui_md::SPAN_LATEXMATH_DISPLAY(bool)
 
 }
 
-void imgui_md::SPAN_WIKILINK(const MD_SPAN_WIKILINK_DETAIL*, bool)
+void imgui_md::SPAN_WIKILINK(bool)
 {
 
 }
@@ -695,152 +732,142 @@ void imgui_md::render_inline_code(const char *str, const char *str_end)
     m_is_code = false;
 }
 
-int imgui_md::text(MD_TEXTTYPE type, const char* str, const char* str_end)
+
+int imgui_md::block(int type, void* d, bool e)
 {
-	switch (type) {
-	case MD_TEXT_NORMAL:
-		render_text(str, str_end);
-		break;
-	case MD_TEXT_CODE:
-        if (m_is_code_block)
-            m_code_block += std::string(str, str_end);
-        else
-            render_inline_code(str, str_end);
-		break;
-	case MD_TEXT_NULLCHAR:
-		break;
-	case MD_TEXT_BR:
-		ImGui::NewLine();
-		break;
-	case MD_TEXT_SOFTBR:
-		soft_break();
-		break;
-	case MD_TEXT_ENTITY:
-		if (!render_entity(str, str_end)) {
-			render_text(str, str_end);
-		};
-		break;
-	case MD_TEXT_HTML:
-		if (!check_html(str, str_end)) {
-			render_text(str, str_end);
-		}
-		break;
-	case MD_TEXT_LATEXMATH:
-		render_text(str, str_end);
-		break;
-	default:
-		break;
-	}
+        switch ((MD_BLOCKTYPE)type)
+        {
+        case MD_BLOCK_DOC:
+                BLOCK_DOC(e);
+                break;
+        case MD_BLOCK_QUOTE:
+                BLOCK_QUOTE(e);
+                break;
+        case MD_BLOCK_UL:
+                if (e) {
+                        auto* in = (MD_BLOCK_UL_DETAIL*)d;
+                        m_list_stack.push_back(list_info{ 0, in->mark, false });
+                } else {
+                        m_list_stack.pop_back();
+                        if (m_list_stack.empty())
+                                ImGui::NewLine();
+                }
+                BLOCK_UL(e);
+                break;
+        case MD_BLOCK_OL:
+                if (e) {
+                        auto* in = (MD_BLOCK_OL_DETAIL*)d;
+                        m_list_stack.push_back(list_info{ in->start, in->mark_delimiter, true });
+                } else {
+                        m_list_stack.pop_back();
+                        if (m_list_stack.empty())
+                                ImGui::NewLine();
+                }
+                BLOCK_OL(e);
+                break;
+        case MD_BLOCK_LI:
+                BLOCK_LI(e);
+                break;
+        case MD_BLOCK_HR:
+                BLOCK_HR(e);
+                break;
+        case MD_BLOCK_H:
+        {
+                auto* in = (MD_BLOCK_H_DETAIL*)d;
+                MdBlockHDetail out{ in->level };
+                BLOCK_H(&out, e);
+        }
+                break;
+        case MD_BLOCK_CODE:
+        {
+                auto* in = (MD_BLOCK_CODE_DETAIL*)d;
+                MdBlockCodeDetail out{ to_attr(in->lang) };
+                BLOCK_CODE(&out, e);
+        }
+                break;
+        case MD_BLOCK_HTML:
+                BLOCK_HTML(e);
+                break;
+        case MD_BLOCK_P:
+                BLOCK_P(e);
+                break;
+        case MD_BLOCK_TABLE:
+                BLOCK_TABLE(e);
+                break;
+        case MD_BLOCK_THEAD:
+                BLOCK_THEAD(e);
+                break;
+        case MD_BLOCK_TBODY:
+                BLOCK_TBODY(e);
+                break;
+        case MD_BLOCK_TR:
+                BLOCK_TR(e);
+                break;
+        case MD_BLOCK_TH:
+                BLOCK_TH(e);
+                break;
+        case MD_BLOCK_TD:
+                BLOCK_TD(e);
+                break;
+        default:
+                assert(false);
+                break;
+        }
 
-	if (m_is_table_header) {
-		const float x = ImGui::GetCursorPosX();
-		if (x > m_table_last_pos.x)m_table_last_pos.x = x;
-	}
-
-	return 0;
+        return 0;
 }
 
-int imgui_md::block(MD_BLOCKTYPE type, void* d, bool e)
+int imgui_md::span(int type, void* d, bool e)
 {
-	switch (type)
-	{
-	case MD_BLOCK_DOC:
-		BLOCK_DOC(e);
-		break;
-	case MD_BLOCK_QUOTE:
-		BLOCK_QUOTE(e);
-		break;
-	case MD_BLOCK_UL:
-		BLOCK_UL((MD_BLOCK_UL_DETAIL*)d, e);
-		break;
-	case MD_BLOCK_OL:
-		BLOCK_OL((MD_BLOCK_OL_DETAIL*)d, e);
-		break;
-	case MD_BLOCK_LI:
-		BLOCK_LI((MD_BLOCK_LI_DETAIL*)d, e);
-		break;
-	case MD_BLOCK_HR:
-		BLOCK_HR(e);
-		break;
-	case MD_BLOCK_H:
-		BLOCK_H((MD_BLOCK_H_DETAIL*)d, e);
-		break;
-	case MD_BLOCK_CODE:
-		BLOCK_CODE((MD_BLOCK_CODE_DETAIL*)d, e);
-		break;
-	case MD_BLOCK_HTML:
-		BLOCK_HTML(e);
-		break;
-	case MD_BLOCK_P:
-		BLOCK_P(e);
-		break;
-	case MD_BLOCK_TABLE:
-		BLOCK_TABLE((MD_BLOCK_TABLE_DETAIL*)d, e);
-		break;
-	case MD_BLOCK_THEAD:
-		BLOCK_THEAD(e);
-		break;
-	case MD_BLOCK_TBODY:
-		BLOCK_TBODY(e);
-		break;
-	case MD_BLOCK_TR:
-		BLOCK_TR(e);
-		break;
-	case MD_BLOCK_TH:
-		BLOCK_TH((MD_BLOCK_TD_DETAIL*)d, e);
-		break;
-	case MD_BLOCK_TD:
-		BLOCK_TD((MD_BLOCK_TD_DETAIL*)d, e);
-		break;
-	default:
-		assert(false);
-		break;
-	}
+        switch ((MD_SPANTYPE)type)
+        {
+        case MD_SPAN_EM:
+                SPAN_EM(e);
+                break;
+        case MD_SPAN_STRONG:
+                SPAN_STRONG(e);
+                break;
+        case MD_SPAN_A:
+        {
+                auto* in = (MD_SPAN_A_DETAIL*)d;
+                MdSpanADetail out{ to_attr(in->href) };
+                SPAN_A(&out, e);
+        }
+                break;
+        case MD_SPAN_IMG:
+        {
+                auto* in = (MD_SPAN_IMG_DETAIL*)d;
+                MdSpanImgDetail out{ to_attr(in->src) };
+                SPAN_IMG(&out, e);
+        }
+                break;
+        case MD_SPAN_CODE:
+                SPAN_CODE(e);
+                break;
+        case MD_SPAN_DEL:
+                SPAN_DEL(e);
+                break;
+        case MD_SPAN_LATEXMATH:
+                SPAN_LATEXMATH(e);
+                break;
+        case MD_SPAN_LATEXMATH_DISPLAY:
+                SPAN_LATEXMATH_DISPLAY(e);
+                break;
+        case MD_SPAN_WIKILINK:
+                SPAN_WIKILINK(e);
+                break;
+        case MD_SPAN_U:
+                SPAN_U(e);
+                break;
+        default:
+                assert(false);
+                break;
+        }
 
-	return 0;
+        return 0;
 }
 
-int imgui_md::span(MD_SPANTYPE type, void* d, bool e)
-{
-	switch (type)
-	{
-	case MD_SPAN_EM:
-		SPAN_EM(e);
-		break;
-	case MD_SPAN_STRONG:
-		SPAN_STRONG(e);
-		break;
-	case MD_SPAN_A:
-		SPAN_A((MD_SPAN_A_DETAIL*)d, e);
-		break;
-	case MD_SPAN_IMG:
-		SPAN_IMG((MD_SPAN_IMG_DETAIL*)d, e);
-		break;
-	case MD_SPAN_CODE:
-		SPAN_CODE(e);
-		break;
-	case MD_SPAN_DEL:
-		SPAN_DEL(e);
-		break;
-	case MD_SPAN_LATEXMATH:
-		SPAN_LATEXMATH(e);
-		break;
-	case MD_SPAN_LATEXMATH_DISPLAY:
-		SPAN_LATEXMATH_DISPLAY(e);
-		break;
-	case MD_SPAN_WIKILINK:
-		SPAN_WIKILINK((MD_SPAN_WIKILINK_DETAIL*)d, e);
-		break;
-	case MD_SPAN_U:
-		SPAN_U(e);
-		break;
-	default:
-		assert(false);
-		break;
-	}
-
-	return 0;
-}
+int imgui_md::print(const char* str, const char* str_end)
 
 int imgui_md::print(const char* str, const char* str_end)
 {
