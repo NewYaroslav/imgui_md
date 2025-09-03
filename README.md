@@ -1,163 +1,260 @@
+# imgui_md (fork)
+
+A Markdown renderer for [Dear ImGui](https://github.com/ocornut/imgui) powered by the [MD4C](https://github.com/mity/md4c) parser.
+
+> **This is a fork** of `imgui_md` with a revised public API and safer build integration.
+
+## Why this fork
+
+- **No public MD4C dependency:** `imgui_md.h` no longer includes `md4c.h`. The MD4C dependency now lives **inside `imgui_md.cpp`**.
+- **Optional node editor integration:** the internal hook to ImGui Node Editor is guarded by `IMGUI_MD_WITH_NODE_EDITOR` (default **off**), avoiding link errors when the editor is not present.
+- **Font API update:** `get_font()` now returns **`MdSizedFont { ImFont*, float size }`** (requires **ImGui ≥ 1.92** for `ImGui::PushFont(font, size)`).
+
+License remains MIT (same as upstream). Some ideas are inspired by [`imgui_markdown`](https://github.com/juliettef/imgui_markdown).
+
+---
+
+## Features
+
+- Wrapped text
+- Headers (`#`, `##`, …)
+- Emphasis (italic, bold), underline, strikethrough
+- Ordered & unordered lists (including nested)
+- Links & images
+- Horizontal rules
+- Tables
+- Inline HTML snippets: `<br>`, `<hr>`, `<u>`, `<div>`, `&nbsp;`
+- Backslash escapes
+
+**Table notes**
+- Column widths are driven by the header row.
+- Cells are left-aligned.
+
+---
+
+## Installation
+
+### A) Add sources directly
+Add these files to your project:
+- From this fork: `imgui_md.h`, `imgui_md.cpp`
+- From MD4C: `md4c.c`, `md4c.h`
+
+The public header **does not** include `md4c.h`; consumers do **not** need MD4C include paths.  
+If `md4c.h` is not in the default location, you can override it:
+
+```bash
+# Example: set a custom include path for md4c.h
+g++ -DIMGUI_MD_MD4C_INCLUDE=\"path/to/md4c.h\"
+````
+
+### B) Minimal CMake example
+
+```cmake
 # imgui_md
-Markdown renderer for [Dear ImGui](https://github.com/ocornut/imgui) using [MD4C](https://github.com/mity/md4c) parser.
+add_library(imgui_md imgui_md.cpp)
+target_include_directories(imgui_md
+    PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}   # for #include "imgui_md.h"
+)
 
-C++11 or above
+# md4c (C library)
+enable_language(C)
+add_library(md4c STATIC ${MD4C_DIR}/src/md4c.c)
+target_include_directories(md4c PUBLIC ${MD4C_DIR}/src)
 
-imgui_md currently supports the following markdown functionality:
+target_link_libraries(imgui_md
+    PUBLIC  imgui::imgui
+    PRIVATE md4c
+)
 
-  * Wrapped text
-  * Headers 
-  * Emphasis
-  * Ordered and unordered list, sub-lists
-  * Link
-  * Image
-  * Horizontal rule	
-  * Table
-  * Underline
-  * Strikethrough
-  * HTML elements: \<br\> \<hr\> \<u\> \<div\> \&nbsp;
-  * Backslash Escapes
+# Node editor hook is OFF by default
+target_compile_definitions(imgui_md PUBLIC IMGUI_MD_WITH_NODE_EDITOR=0)
+```
 
-Most format tags can be mixed!
-
-Current tables limitations:
-  * Width of the columns are defined by header
-  * Cells are always left aligned
+---
 
 ## Usage
-
-Add imgui_md.h imgui_md.cpp md4c.h md4c.c to your project and use the following code:
-The public header no longer exposes md4c types; thin wrappers like `MdBlockHDetail` and
-`MdSpanADetail` are used instead.
-If md4c.h is located elsewhere, you can override its path by defining `IMGUI_MD_MD4C_INCLUDE`, for example:
-
-```
-g++ -DIMGUI_MD_MD4C_INCLUDE=\"path/to/md4c.h\"
-```
-
-If you use ImGui's node editor, enable its integration by defining `IMGUI_MD_WITH_NODE_EDITOR=1` during compilation. The flag defaults to `0`, which provides a stub and avoids link errors when the node editor is not present.
 
 ```cpp
 #include "imgui_md.h"
 
-//Fonts and images (ImTextureID) must be loaded in other place
-//see https://github.com/ocornut/imgui/blob/master/docs/FONTS.md
-extern ImFont* g_font_regular;
-extern ImFont* g_font_bold;
-extern ImFont* g_font_bold_large;
+// Ensure fonts/textures are created elsewhere.
+// See https://github.com/ocornut/imgui/blob/master/docs/FONTS.md
+extern ImFont*     g_font_regular;
+extern ImFont*     g_font_bold;
+extern ImFont*     g_font_bold_large;
 extern ImTextureID g_texture1;
 
-struct my_markdown : public imgui_md
-{
-	ImFont* get_font() const override
-	{
-		if (m_is_table_header) {
-			return g_font_bold;
-		}
+struct MyMarkdown : imgui_md {
+    // New API (ImGui >= 1.92): return font + size
+    MdSizedFont get_font() const override {
+        if (m_is_table_header)
+            return { g_font_bold, ImGui::GetFontSize() };
 
-		switch (m_hlevel)
-		{
-		case 0:
-			return m_is_strong ? g_font_bold : g_font_regular;
-		case 1:
-			return g_font_bold_large;
-		default:
-			return g_font_bold;
+        switch (m_hlevel) {
+            case 0: return { m_is_strong ? g_font_bold : g_font_regular, ImGui::GetFontSize() };
+            case 1: return { g_font_bold_large,                            ImGui::GetFontSize() };
+            default:return { g_font_bold,                                   ImGui::GetFontSize() };
         }
+    }
+
+    void open_url() const override {
+        // Platform-specific open; for example:
+        // SDL_OpenURL(m_href.c_str());
+    }
+
+    bool get_image(image_info& nfo) const override {
+        // Use m_img_src / m_href to resolve the image
+        nfo.texture_id = g_texture1;
+        nfo.size       = ImVec2(40, 20);
+        nfo.uv0        = ImVec2(0, 0);
+        nfo.uv1        = ImVec2(1, 1);
+        nfo.col_tint   = ImVec4(1, 1, 1, 1);
+        nfo.col_border = ImVec4(0, 0, 0, 0);
+        return true;
+    }
+
+    void html_div(const std::string& cls, bool enter) override {
+        if (cls == "red") {
+            if (enter) {
+                m_table_border = false;
+                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
+            } else {
+                ImGui::PopStyleColor();
+                m_table_border = true;
+            }
+        }
+    }
 };
 
-        void open_url() const override
-        {
-                //platform dependent code
-		SDL_OpenURL(m_href.c_str());
-	}
-
-	bool get_image(image_info& nfo) const override
-	{
-		//use m_href to identify images
-		nfo.texture_id = g_texture1;
-		nfo.size = {40,20};
-		nfo.uv0 = { 0,0 };
-		nfo.uv1 = {1,1};
-		nfo.col_tint = { 1,1,1,1 };
-		nfo.col_border = { 0,0,0,0 };
-		return true;
-	}
-	
-	void html_div(const std::string& dclass, bool e) override
-	{
-		if (dclass == "red") {
-			if (e) {
-				m_table_border = false;
-				ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
-			} else {
-				ImGui::PopStyleColor();
-				m_table_border = true;
-			}
-		}
-        }
-};
-
-
-//call this function to render your markdown
-void markdown(const char* str, const char* str_end)
-{
-        static my_markdown s_printer;
-        s_printer.print(str, str_end);
+void RenderMarkdown(const char* text, const char* text_end) {
+    static MyMarkdown md;
+    md.print(text, text_end);
 }
-
 ```
 
-// Examples of overriding callbacks with the new thin types
+### Overriding callbacks with the new thin types
+
+The public API no longer exposes MD4C types. Instead, thin wrappers are used:
+
 ```cpp
-struct hooks_example : imgui_md {
+struct Hooks : imgui_md {
     void BLOCK_H(const MdBlockHDetail* d, bool enter) override {
         if (enter) m_hlevel = d->level;
     }
     void SPAN_A(const MdSpanADetail* d, bool enter) override {
         if (enter) m_href.assign(d->href.text, d->href.size);
+        else       m_href.clear();
     }
 };
 ```
+
+---
+
+## Public API highlights
+
+* **Font**
+
+  ```cpp
+  struct MdSizedFont { ImFont* font; float size; };
+  virtual MdSizedFont get_font() const;   // required; ImGui >= 1.92
+  ```
+
+* **Thin detail types (no MD4C headers in public API)**
+
+  ```cpp
+  struct MdAttr           { const char* text; int size; };
+  struct MdBlockHDetail   { int     level; };
+  struct MdBlockCodeDetail{ MdAttr  lang;  };
+  struct MdSpanADetail    { MdAttr  href;  };
+  struct MdSpanImgDetail  { MdAttr  src;   };
+  ```
+
+* **Representative callbacks**
+
+  ```cpp
+  // Blocks
+  virtual void BLOCK_UL(bool enter);
+  virtual void BLOCK_OL(bool enter);
+  virtual void BLOCK_LI(bool enter);
+  virtual void BLOCK_H   (const MdBlockHDetail*   d, bool enter);
+  virtual void BLOCK_CODE(const MdBlockCodeDetail*d, bool enter);
+  virtual void BLOCK_TABLE(bool enter);
+  virtual void BLOCK_TD(bool enter);
+
+  // Spans
+  virtual void SPAN_A  (const MdSpanADetail*   d, bool enter);
+  virtual void SPAN_IMG(const MdSpanImgDetail* d, bool enter);
+
+  // Helpers for link/image
+  void set_href   (bool enter, const MdAttr& a);
+  void set_img_src(bool enter, const MdAttr& a);
+  ```
+
+* **Protected state you can use in overrides**
+
+  * `m_hlevel` (current header level), `m_is_strong`, `m_is_em`, `m_is_underline`, `m_is_strike`
+  * `m_is_table_header`, `m_table_border`
+  * `m_href`, `m_img_src` (current link/image source during parsing)
+
+---
+
+## Optional node editor integration
+
+By default the internal hook to ImGui Node Editor is **disabled**:
+
+* Define `IMGUI_MD_WITH_NODE_EDITOR=1` if you link the node editor and want the integration enabled.
+* With the default `0`, a safe stub is used and there are **no extra link dependencies**.
+
+```cmake
+target_compile_definitions(imgui_md PUBLIC IMGUI_MD_WITH_NODE_EDITOR=0)  # default
+```
+
+---
+
+## Breaking changes (compared to original)
+
+1. **Font API**
+
+   * **Was:** `ImFont* get_font() const`
+   * **Now:** `MdSizedFont get_font() const`
+     Requires **ImGui ≥ 1.92** (uses `ImGui::PushFont(font, size)`).
+
+2. **MD4C types are hidden**
+
+   * Public header no longer includes `md4c.h`.
+   * Callback parameters use thin wrappers (`MdBlockHDetail`, `MdSpanADetail`, …).
+     Consumers do **not** need MD4C include paths.
+
+3. **Node editor hook is opt-in**
+
+   * Controlled by `IMGUI_MD_WITH_NODE_EDITOR` (default `0`).
+
+---
+
+## Compatibility
+
+* **Dear ImGui:** **1.92+** (relies on `PushFont(font, size)`).
+  On older ImGui, you would need a local fallback via `SetWindowFontScale()` (not officially supported).
+* **Compiler:** C++11 or newer.
+* **MD4C:** One C translation unit (`md4c.c`) plus header (`md4c.h`).
+  If needed, override header path with `IMGUI_MD_MD4C_INCLUDE`.
+
+---
 
 ## Examples
 
 ```markdown
 # Table
 
-Name &nbsp; &nbsp; &nbsp; &nbsp; | Multiline &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<br>header  | [Link&nbsp;](#link1)
+Name &nbsp;&nbsp;&nbsp;&nbsp; | Multiline&nbsp;&nbsp;&nbsp;&nbsp;<br>header  | [Link&nbsp;](#link1)
 :------|:-------------------|:--
-Value-One | Long <br>explanation <br>with \<br\>\'s|1
-~~Value-Two~~ | __text auto wrapped__\: long explanation here |25 37 43 56 78 90
-**etc** | [~~Some **link**~~](https://github.com/mekhontsev/imgui_md)|3
-```
-<img src="https://user-images.githubusercontent.com/2968582/115061289-30fcc900-9f13-11eb-9d7a-8f32f51e11b3.png" width="677" />
-
-```markdown
-# List
-
-1. First ordered list item
-2. Another item
-   * Unordered sub-list 1.
-   * Unordered sub-list 2.
-1. Actual numbers don't matter, just that it's a number
-   1. **Ordered** sub-list 1
-   2. **Ordered** sub-list 2
-4. And another item with minuses.
-   - __sub-list with underline__
-   - sub-list with escapes: \[looks like\]\(a link\)
-5. ~~Item with pluses and strikethrough~~.
-   + sub-list 1
-   + sub-list 2
-   + [Just a link](https://github.com/mekhontsev/imgui_md).
-      * Item with [link1](#link1)
-      * Item with bold [**link2**](#link1)
+Value-One | Long <br>explanation | 1
+~~Value-Two~~ | __auto wrapped__ | 25
+**etc** | [link](https://github.com/mekhontsev/imgui_md) | 3
 ```
 
-<img src="https://user-images.githubusercontent.com/2968582/115061306-38bc6d80-9f13-11eb-9fb4-1fee53ffed96.png" width="676" />
-
 ```markdown
-<div class = "red">
+<div class="red">
 
 This table | is inside an | HTML div
 --- | --- | ---
@@ -167,13 +264,16 @@ Border | **is not** | visible
 </div>
 ```
 
-<img src="https://user-images.githubusercontent.com/2968582/115060481-1b3ad400-9f12-11eb-87d7-4a1e0eb8ea93.png" width="464" />
+(See upstream for screenshots of similar output.)
 
+---
 
 ## Credits
-[imgui_markdown for ideas](https://github.com/juliettef/imgui_markdown)
 
-[Martin Mitáš for MD4C](https://github.com/mity/md4c)
+* [Dmitry Mekhontsev — imgui\_md (original)](https://github.com/mekhontsev/imgui_md)
+* [Martin Mitáš — MD4C](https://github.com/mity/md4c)
+* [Omar Cornut — Dear ImGui](https://github.com/ocornut/imgui)
 
-[Omar Cornut for Dear ImGui](https://github.com/ocornut/imgui)  
+## License
 
+MIT, same as upstream.
